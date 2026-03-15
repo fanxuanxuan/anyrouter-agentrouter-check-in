@@ -1,8 +1,21 @@
-name: AnyRouter 自动签到
+name: AnyRouter 防风控随机签到
+
 on:
   schedule:
-    - cron: '35 1 * * *'
+    # 上午波：北京时间 09:30 启动 (UTC 01:30)
+    - cron: '30 1 * * *'
+    # 下午波：北京时间 15:30 启动 (UTC 07:30)
+    - cron: '30 7 * * *'
   workflow_dispatch:
+    inputs:
+      wave:
+        description: '手动选择执行波次（1=上午波前半账号，2=下午波后半账号）'
+        required: true
+        default: '1'
+        type: choice
+        options:
+          - '1'
+          - '2'
 
 jobs:
   checkin:
@@ -69,8 +82,12 @@ jobs:
         restore-keys: |
           balance-hash-
 
-    - name: 执行签到
+    - name: 随机分波签到
       env:
+        # 手动触发时由用户通过下拉框选择波次（1 或 2）
+        # 定时触发时该值为空，wave_runner.py 改用 WAVE_SCHEDULE 判断
+        WAVE_INPUT: ${{ github.event.inputs.wave }}
+        WAVE_SCHEDULE: ${{ github.event.schedule }}
         ANYROUTER_ACCOUNTS: ${{ secrets.ANYROUTER_ACCOUNTS }}
         PROVIDERS: ${{ secrets.PROVIDERS }}
         DINGDING_WEBHOOK: ${{ secrets.DINGDING_WEBHOOK }}
@@ -91,7 +108,7 @@ jobs:
         BARK_KEY: ${{ secrets.BARK_KEY }}
         BARK_SERVER: ${{ secrets.BARK_SERVER }}
       run: |
-        uv run checkin.py
+        uv run wave_runner.py
 
     - name: 执行结果
       if: always()
